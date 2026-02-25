@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
 
 # ==============================
-# Revogame CLI Framework
+# Revogame Exclusive Control Panel
 # ==============================
+
+clear
+printf "\033[3J\033[H\033[2J"
+
+# Root Check
+if [[ $EUID -ne 0 ]]; then
+  echo "Please run as root"
+  exit 1
+fi
 
 # Colors
 RED='\033[0;31m'
@@ -12,11 +21,10 @@ YELLOW='\033[1;33m'
 WHITE='\033[1;37m'
 NC='\033[0m'
 
-BASE_URL="https://revogame.ir/install.sh"
-
-clear
-
+# ==============================
 # Logo
+# ==============================
+
 echo -e "${CYAN}"
 cat << "EOF"
 ██████╗ ███████╗██╗   ██╗ ██████╗  ██████╗  █████╗ ███╗   ███╗███████╗
@@ -28,86 +36,129 @@ cat << "EOF"
 EOF
 echo -e "${NC}"
 
-echo -e "${WHITE}OS:${NC} $(lsb_release -ds 2>/dev/null || grep PRETTY_NAME /etc/os-release | cut -d= -f2)"
+echo -e "${WHITE}Exclusive Revogame Server Panel${NC}"
 echo
 
 # ==============================
 # Functions
 # ==============================
 
-install_script() {
-    NAME=$1
-    FILE=$2
-
-    echo -e "${YELLOW}Installing $NAME...${NC}"
-
-    curl -fsSL -o /usr/local/bin/$FILE.sh $BASE_URL/$FILE.sh
-
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}Download failed!${NC}"
-        return
-    fi
-
-    chmod +x /usr/local/bin/$FILE.sh
-
-    echo -e "#!/bin/bash" > /usr/local/bin/$FILE
-    echo "bash /usr/local/bin/$FILE.sh" >> /usr/local/bin/$FILE
-    chmod +x /usr/local/bin/$FILE
-
-    echo -e "${GREEN}$NAME installed successfully!${NC}"
-}
-
-remove_script() {
-    FILE=$1
-    rm -f /usr/local/bin/$FILE
-    rm -f /usr/local/bin/$FILE.sh
-    echo -e "${GREEN}Removed successfully.${NC}"
-}
-
 pause() {
-    read -p "Press Enter to continue..."
+  read -p "Press Enter to continue..."
 }
 
 # ==============================
-# Menu Loop
+# 1️⃣ GRE IPv4 Tunnel
+# ==============================
+
+gre_tunnel() {
+  clear
+  echo -e "${CYAN}=== GRE IPv4 Tunnel Setup ===${NC}"
+
+  read -p "Local Server Public IP: " LOCAL_IP
+  read -p "Remote Server Public IP: " REMOTE_IP
+  read -p "Local Tunnel IP (e.g. 10.10.10.1/30): " LOCAL_TUN
+  read -p "Remote Tunnel IP (e.g. 10.10.10.2): " REMOTE_TUN
+
+  ip tunnel add gre1 mode gre local $LOCAL_IP remote $REMOTE_IP ttl 255
+  ip addr add $LOCAL_TUN dev gre1
+  ip link set gre1 up
+
+  echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+  sysctl -p
+
+  echo -e "${GREEN}GRE Tunnel Created Successfully ✔${NC}"
+  pause
+}
+
+# ==============================
+# 2️⃣ Speed Test by Ookla
+# ==============================
+
+speedtest_install() {
+  clear
+  echo -e "${CYAN}Installing Speedtest by Ookla...${NC}"
+
+  curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | bash
+  apt-get install -y speedtest
+
+  echo -e "${GREEN}Installed Successfully ✔${NC}"
+  echo
+  speedtest
+  pause
+}
+
+# ==============================
+# 3️⃣ Smart DNS Changer
+# ==============================
+
+dns_changer() {
+  clear
+  echo -e "${CYAN}=== Smart DNS Changer ===${NC}"
+  echo "1) Shecan"
+  echo "2) Electro"
+  echo "3) Begzar"
+  echo "4) Google"
+  echo "5) Cloudflare"
+  echo
+
+  read -p "Select DNS Provider: " dns
+
+  case $dns in
+    1)
+      DNS1="178.22.122.100"
+      DNS2="185.51.200.2"
+      ;;
+    2)
+      DNS1="78.157.42.100"
+      DNS2="78.157.42.101"
+      ;;
+    3)
+      DNS1="185.55.226.26"
+      DNS2="185.55.225.25"
+      ;;
+    4)
+      DNS1="8.8.8.8"
+      DNS2="8.8.4.4"
+      ;;
+    5)
+      DNS1="1.1.1.1"
+      DNS2="1.0.0.1"
+      ;;
+    *)
+      echo "Invalid option"
+      pause
+      return
+      ;;
+  esac
+
+  echo -e "nameserver $DNS1\nnameserver $DNS2" > /etc/resolv.conf
+
+  echo -e "${GREEN}DNS Updated Successfully ✔${NC}"
+  pause
+}
+
+# ==============================
+# Main Menu
 # ==============================
 
 while true; do
-    clear
-    echo -e "${CYAN}==== Revogame Control Panel ====${NC}"
-    echo
-    echo "1) Install Master Tunnel"
-    echo "2) Install Speedtest"
-    echo "3) Install DNS Changer"
-    echo "4) Remove Master Tunnel"
-    echo "0) Exit"
-    echo
+  clear
+  echo -e "${CYAN}==== Revogame Exclusive Panel ====${NC}"
+  echo
+  echo "1) GRE IPv4 Tunnel"
+  echo "2) Speed Test By Ookla"
+  echo "3) Smart DNS Changer"
+  echo "0) Exit"
+  echo
 
-    read -p "Select an option: " option
+  read -p "Select Option: " option
 
-    case $option in
-        1)
-            install_script "Master Tunnel" "mtunnel"
-            pause
-            ;;
-        2)
-            install_script "Speedtest" "speedtest"
-            pause
-            ;;
-        3)
-            install_script "DNS Changer" "dnschanger"
-            pause
-            ;;
-        4)
-            remove_script "mtunnel"
-            pause
-            ;;
-        0)
-            exit 0
-            ;;
-        *)
-            echo -e "${RED}Invalid option${NC}"
-            sleep 1
-            ;;
-    esac
+  case $option in
+    1) gre_tunnel ;;
+    2) speedtest_install ;;
+    3) dns_changer ;;
+    0) clear; exit 0 ;;
+    *) echo -e "${RED}Invalid Option${NC}"; sleep 1 ;;
+  esac
 done
